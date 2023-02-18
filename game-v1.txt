@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var createScene = function () {
+     var scene = new BABYLON.Scene(engine);
+
+
+var hdrTexture = new BABYLON.CubeTexture("textures/Studio_Softbox_2Umbrellas_cube_specular.env", scene);
+            hdrTexture.gammaSpace = false;
+            scene.environmentTexture = hdrTexture;
+var skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:1000.0}, scene);
+var skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+skyboxMaterial.backFaceCulling = false;
+//skyboxMaterial.reflectionTexture = new BABYLON.HDRCubeTexture("./textures/environment.hdr", scene, 128, false, true, false, true);
+skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture("textures/skybox2", scene);
+skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+skyboxMaterial.specularColor = new BABYLON.Color3(1, 1, 1);
+skybox.material = skyboxMaterial;
+
+
+BABYLON.SceneLoader.ImportMesh("", 
+    "https://raw.githubusercontent.com/eldinor/ForBJS/master/", 
+    "BLD_Ghost_city.glb", scene, function (newMeshes) {
+        // document.getElementById("customLoadingScreenDiv").innerHTML += "City loaded";
+
+        for (i=0; i<newMeshes.length;i++){
+            newMeshes[i].checkCollisions = true;
+
+        } 
+
+          });
+
+    /*
+    //Adding a light
+    var light = new BABYLON.PointLight("Omni", new BABYLON.Vector3(20, 20, 100), scene);
+
+    var assetsManager = new BABYLON.AssetsManager(scene);
+
+    assetsManager.onFinish = function (tasks) {
+        start();
+    };
+
+    var LoadEntity = function (name, meshNameToLoad, url, file, manager, meshArray, entity_number, props) {
+        var meshTask = manager.addMeshTask(name, meshNameToLoad, url, file);
+
+        meshTask.onSuccess = function (task) {
+
+            meshArray[entity_number] = task.loadedMeshes[0];
+            meshArray[entity_number].position = BABYLON.Vector3.Zero();
+
+            if (props) {
+                if (props.scaling) {
+                    meshArray[entity_number].scaling.copyFrom(props.scaling);
+                }
+                if (props.position) {
+                    meshArray[entity_number].position.copyFrom(props.position);
+                }
+            }
+        }
+    }
+
+
+    var myMesh = [];
+
+    LoadEntity("logo", "BJS-3D-logo_light.000", "scenes/", "babylonJS_logo_v3.babylon", assetsManager, myMesh, 0);
+
+    LoadEntity("skull", "test", "scenes/", "skull.babylon", assetsManager, myMesh, 1);
+
+    assetsManager.load();
+    */
+
+    let dT = engine.getDeltaTime();
+    function updateDT() {
+        dT = engine.getDeltaTime();
+    }
+
+    var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+    var sv = new BABYLON.GUI.ScrollViewer();
+    sv.name = "mysv";
+    sv.thickness = 3;
+    sv.color = "green";
+    sv.width = 1;
+    sv.height = 0.2;
+    sv.background = "black";
+    sv.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+    sv.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+    // console.log(sv);
+
+    advancedTexture.addControl(sv);
+
+    var tb = new BABYLON.GUI.TextBlock();
+    tb.name = "mytb";
+    tb.textWrapping = BABYLON.GUI.TextWrapping.WordWrap;
+    tb.resizeToFit = true;
+    tb.paddingTop = "0%";
+    tb.paddingLeft = "10px";
+    tb.paddingRight = "5px"
+    tb.paddingBottom = "0%";
+    tb.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    tb.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    tb.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+    tb.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+    tb.fontSize = "13px";
+    tb.fontFamily = "Courier New";
+    tb.color = "red";
+    tb.background = "yellow";
+
+    sv.addControl(tb);
+
+    // build our own console.log() replacement... called console.out()
+    console.out = function(text) {
+        tb.text += "\n\n" + "> " + text;
+        if (sv.verticalBar) {
+            var vbar = sv.verticalBar;
+            console.log(sv.vbar);
+            vbar.color = "cornflowerblue";
+            vbar._value = 1;
+        }
+    } 
+    // replacement for console.clear()... console.wipe()
+    console.wipe = function() {
+        // sv.verticalBar.value = 0;
+        tb.text = "";
+    } 
+
+    // sv.onReadyObservable.add(console.log("sv ORO"));
+    sv.onAfterDrawObservable.add(console.log("sv drawn"));
+    sv.verticalBar.onValueChangedObservable.add(console.log("vb change"));
+
+    var ammocount = new BABYLON.GUI.TextBlock();
+    ammocount.leftInPixels = canvas.width/2.1;
+    ammocount.text = auam+"";
+    ammocount.color = "white";
+    ammocount.fontSize = 24;
+    advancedTexture.addControl(ammocount);
+
+    var ammocount1 = new BABYLON.GUI.TextBlock();
+    ammocount1.text = ".";
+    ammocount1.color = "white";
+    ammocount1.fontSize = 24;
+    advancedTexture.addControl(ammocount1);
+
+
+    canvas.onclick = function() {
+        canvas.requestPointerLock();
+
+    }
+
+    canvas.addEventListener('pointerlockchange', lockChangeLog, false);
+
+    function lockChangeLog() {
+        if (canvas.pointerLockElement === canvas) {
+            control = true;
+            divObj.innerHTML = "The pointer is locked. Press Esc to unlock.";
+            canvas.addEventListener("mousemove", mousemoveCallback, false);
+        } else {
+            control = false;
+            divObj.innerHTML = "The pointer is unlocked.";
+            canvas.removeEventListener("mousemove", mousemoveCallback, false);
+        }
+    }
+
+
+
+    function mousemoveCallback(event) {
+        var demo = requestAnimationFrame(mousemoveCallback);
+    }
+
+    // Lights
+    var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    var camera = new BABYLON.FreeCamera("camera", new BABYLON.Vector3(30, 30, 0), scene);
+    camera.attachControl(canvas, true);
+    camera.keysUp = [87];
+    camera.keysDown = [83];
+    camera.keysLeft = [65];
+    camera.keysRight = [68];
+    camera.inertia = 0.2;
+    camera.fov = 1.5;
+    camera.minZ = 0;
+    camera.angularSensibility = 500;
+    camera.speed = 2.5;
+    scene.gravity = new BABYLON.Vector3(0, -0.6, 0);
+    scene.collisionsEnabled = true;
+    camera.checkCollisions = true;
+    camera.applyGravity = true;
+    camera.ellipsoid = new BABYLON.Vector3(0.25, 1.5, 0.25);
+    camera._needMoveForGravity = true;
+
+    var akm = new BABYLON.TransformNode();
+    akm.parent = camera;
+    camera.fov = 1;
+    akm.position = new BABYLON.Vector3(0.5, -0.7, 0.5);
+    akm.rotation.x = -0.01;
+
+    BABYLON.SceneLoader.ImportMesh("", "https://dl.dropbox.com/s/kqnda4k2aqx8pro/", "AKM.obj", scene, function (newMeshes) {
+        var mat = new BABYLON.StandardMaterial("", scene);
+        mat.diffuseTexture = new BABYLON.Texture("https://dl.dropbox.com/s/isvd4dggvp3vks2/akm_diff.tga");
+        mat.bumpTexture = new BABYLON.Texture("https://dl.dropbox.com/s/hiuhjsp4pckt9pu/akm_norm.tga");
+        mat.specularTexture = new BABYLON.Texture("https://dl.dropbox.com/s/f3samm7vuvl0ez4/akm_spec.tga");
+        for (var index = 0; index < newMeshes.length; index++) {
+            let ak = newMeshes[index];
+            ak.material = mat;
+            ak.scaling.x = 0.05;
+            ak.scaling.y = 0.05;
+            ak.scaling.z = 0.05;
+            ak.isPickable = false;
+            ak.parent = akm;
+        }
+    });
+
+
+    var newMaterial = new BABYLON.StandardMaterial;
+        newMaterial.diffuseColor = new BABYLON.Color3.Blue;
+
+
+    var imp_mesh;
+
+    var num_enemies = 5;
+    var nodes = [];
+    
+    for (x=0; x<num_enemies;x++){
+    //nodes[x]= "node"+i;
+    var new_node = new BABYLON.TransformNode();
+    nodes[x] = new_node;}
+
+
+    BABYLON.SceneLoader.ImportMesh("", "https://dl.dropbox.com/s/3p6oedl80sm2laq/zombie.glb", "zombie.glb", scene, function(newMeshes){
+    newMeshes[0].rotationQuaternion = null;
+    imp_mesh =  newMeshes[0];
+    imp_mesh.isVisible=false;
+    //imp_mesh.position.x = 0;
+    //imp_mesh.position.y = 0;
+    //imp_mesh.rotate(BABYLON.Vector3.Up(), Math.PI / 2);
+    //imp_mesh.scaling =  new BABYLON.Vector3(10,10,10);;
+
+    for (i=0; i<num_enemies;i++){
+            var variableName = "enemy" + i;
+            var variableName = imp_mesh.clone(variableName);
+            variableName.makeGeometryUnique();
+            //variableName.position.x = Math.random()*15*i;
+            //variableName.position.z = Math.random()*15*i;
+            imp_mesh.parent = nodes[i];
+
+        } 
+    variableName.dispose();
+    //scene.addMesh(imp_mesh);
+
+     });
+    
+    
+    /*
+    var boombox = new BABYLON.TransformNode();
+
+    var imp_boom;
+    BABYLON.SceneLoader.ImportMesh("", "https://models.babylonjs.com/", "ufo.glb", scene, function(newMeshes){
+    newMeshes[0].rotationQuaternion = null;
+    imp_boom =  newMeshes[0];
+    imp_boom.position.x = 0;
+    imp_boom.position.y = 0;
+    //imp_boom.rotate(BABYLON.Vector3.Up(), Math.PI / 2);
+    //imp_boom.scaling =  new BABYLON.Vector3(10,10,10);;
+    imp_boom.parent = boombox;
+    scene.addMesh(imp_boom);
+     });
+    */
+
+    //var imp_sphere = BABYLON.SceneLoader.ImportMesh("imp_sphere", "https://raw.githubusercontent.com/BabylonJS/MeshesLibrary/master/", "shaderBall.glb", scene);
+
+    var recoilm = new BABYLON.Animation("recoilm", "position.z", 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    var remkeys = [];
+
+    remkeys.push({
+        frame: 0,
+        value: 0.5
+    });
+
+    remkeys.push({
+        frame: 1,
+        value: -0.03
+    });
+
+    remkeys.push({
+        frame: 5,
+        value: 0.5
+    });
+
+    remkeys.push({
+        frame: 6,
+        value: 0.2
+    });
+
+    remkeys.push({
+        frame: 7,
+        value: -0.06
+    });
+
+    remkeys.push({
+        frame: 11,
+        value: 0.2
+    });
+
+    recoilm.setKeys(remkeys);
+    akm.animations.push(recoilm);
+
+
+    // regular: akm.position = new BABYLON.Vector3(0.5, -0.7, 0.5);
+    //aim: akm.position = new BABYLON.Vector3(0, -0.4125, 0.2);
+
+
+    var ground0 = BABYLON.Mesh.CreateGround("ground0", 250, 250, 2, scene);
+    ground0.material = new BABYLON.GridMaterial("gmat0", scene);
+    ground0.checkCollisions = true;
+    
+    /*
+    var ground1 = BABYLON.Mesh.CreateGround("ground1", 250, 250, 2, scene);
+    ground1.material = new BABYLON.GridMaterial("gmat1", scene);
+    ground1.position.z = 125;
+    ground1.rotation.x = -Math.PI/6;
+    ground1.checkCollisions = true;
+    */
+
+    /*
+    var box = new BABYLON.Mesh.CreateBox("box", 5, scene);
+    box.position.y = -2;
+    box.checkCollisions = true;
+    var box1 = new BABYLON.Mesh.CreateBox("box1", 5, scene);
+    box1.position.y = -1.5;
+    box1.position.z = 1;
+    box1.checkCollisions = true;
+    var box2 = new BABYLON.Mesh.CreateBox("box2", 5, scene);
+    box2.position.y = -1;
+    box2.position.z = 2;
+    box2.checkCollisions = true;
+    var box3 = new BABYLON.Mesh.CreateBox("box3", 5, scene);
+    box3.position.y = -0.5;
+    box3.position.z = 3;
+    box3.checkCollisions = true;
+    var box4 = new BABYLON.Mesh.CreateBox("box4", 5, scene);
+    box4.position.y = 0;
+    box4.position.z = 4;
+    box4.checkCollisions = true;
+    var box5 = new BABYLON.Mesh.CreateBox("box5", 5, scene);
+    box5.position.y = 0.5;
+    box5.position.z = 5;
+    box5.checkCollisions = true;
+    */
+
+    //scene.getMeshByName("imp_mesh").visibility = false;
+    var health = [];
+    var target = [];
+    var sheal = [];
+
+    for(num_tar=0; num_tar <num_enemies; num_tar++){
+    health [num_tar] = 1;
+
+    target[num_tar] = BABYLON.Mesh.CreateSphere("target"+num_tar, 12, 7, scene);
+    target[num_tar].position.y = 2.5;
+    target[num_tar].position.x = Math.random()*10*num_tar-2.5;
+    target[num_tar].position.z = Math.random()*10*num_tar-2.5;
+
+    target[num_tar].material = new BABYLON.StandardMaterial("mat", scene);
+    //target[num_tar].material.emissiveColor = new BABYLON.Color3(health, health, health);
+    //sheal[num_tar].linkWithMesh(target[num_tar]);   
+    //sheal[num_tar].linkOffsetY = -80;
+    sheal[num_tar] = new BABYLON.GUI.Rectangle();
+    sheal[num_tar].width = 0.1;
+    sheal[num_tar].height = "25px";
+    sheal[num_tar].cornerRadius = 20;
+    sheal[num_tar].color = "black";
+    sheal[num_tar].thickness = 3;
+    sheal[num_tar].background = "green";
+    advancedTexture.addControl(sheal[num_tar]);
+    sheal[num_tar].linkWithMesh(target[num_tar]);   
+    sheal[num_tar].linkOffsetY = -80;
+
+    nodes[num_tar].parent = target[num_tar];
+    target[num_tar].material.alpha= 0;
+    }
+    
+    /*
+    var targetbox = BABYLON.Mesh.CreateSphere("target", 12, 1, scene);
+    targetbox.position.y = 10;
+    targetbox.position.x = 10;
+    targetbox.position.z = 10;
+    targetbox.material = new BABYLON.StandardMaterial("mat1", scene);
+    targetbox.material.emissiveColor = new BABYLON.Color3(health, health, health);
+    boombox.parent = targetbox;
+    targetbox.material.alpha= 0;
+
+    targetbox.parent= target;
+    */
+
+    function PEW() {       
+	
+	    var ray = camera.getForwardRay(999);
+
+        var hit = scene.pickWithRay(ray);
+
+        //let rayHelper = new BABYLON.RayHelper(ray);
+        //rayHelper.show(scene);
+
+        for(a=0;a<num_enemies;a++){
+        if (hit.pickedMesh == target[a]){
+           health[a] -= 0.1;
+	    } else if (hit.pickedMesh == ground0) {
+            camera.position = hit.pickedPoint;
+            camera.position.y += 5;
+        } else {
+            //camera.position = ray.origin.clone().add(ray.direction.scale(100));
+        }
+        }
+
+
+    }
+
+    var wj = true;
+    var grav = -0.6;
+    var speed = 2.5;
+    var spood = 0;
+    var care = true;
+
+    /*var map = {};
+    scene.actionManager = new BABYLON.ActionManager(scene);
+    scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+        if (evt.sourceEvent.shiftKey) {
+            speed = 5;
+        } else {
+            speed = 2.5;
+        }
+        if (evt.sourceEvent.spaceKey) {
+            if (wj == true) {
+                grav = 0.7;
+                wj = false;
+                spood += 0.5;
+            }
+        }
+        map[evt.sourceEvent.key] = evt.sourceEvent.type == "keydown";
+    }));
+    scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+        map[evt.sourceEvent.key] = evt.sourceEvent.type == "keydown";
+    }));
+
+    function keypress() {
+
+        if (map[" "]) {
+            if (wj == true) {
+                grav = 0.7;
+                wj = false;
+                spood += 0.5;
+            }
+        };
+
+        if ((map["r"] || map ["R"])) {
+            if (care == true && aure == 0) {
+                aure = 100;
+                akm.position = new BABYLON.Vector3(0.5, -0.7, 0.5);
+                camera.fov = 1.5;
+                reload.play();
+            }
+        };
+
+    }*/
+
+    var onKeyDown = function(event) {
+
+        switch (event.keyCode) {
+
+            case 32: // Space
+                if (wj == true) {
+                grav = 0.7;
+                wj = false;
+                spood += 0.5;
+                }
+                break;
+
+            case 16: // Shift
+                speed = 5
+                break;
+
+            case 82: // R
+                if (care == true && aure == 0) {
+                    aure = 100;
+                    akm.position = new BABYLON.Vector3(0.5, -0.7, 0.5);
+                    camera.fov = 1.5;
+                    reload.play();
+                }
+                break;
+
+        }
+
+    };
+
+    var onKeyUp = function(event) {
+
+        switch (event.keyCode) {
+
+            case 32: // Space
+                break;
+
+            case 16: // Shift
+                speed = 2.5;
+                break;
+
+            case 82: // R
+                care = true;
+                break;
+
+        }
+
+    };
+
+    canvas.addEventListener('keydown', onKeyDown, false);
+    canvas.addEventListener('keyup', onKeyUp, false);
+
+    scene.onDispose = function() {
+        canvas.removeEventListener('keydown', onKeyDown);
+        canvas.removeEventListener('keyup', onKeyUp);
+    }
+
+    var left, right;
+    left = 0;
+    right = 2;
+    var aufi = false;
+    var auti = 0;
+    var auam = 100;
+    var aure = 0;
+    var aim = false;
+    var res = 0;
+    var ree = 5;
+    var aufr = 5;
+    aufr /= (1000/60);
+    var auti = 1;
+    auti /= (1000/60);
+    var kickback = 0.02;
+
+    
+
+    scene.onPointerDown = (e) => {
+        if (e.button === left) {
+            aufi = true;
+        }
+        if (e.button === right) {
+            if (aim == false) {
+                camera.fov = 1;
+                akm.position = new BABYLON.Vector3(0, -0.4125, 0.2);
+                res = 6;
+                ree = 11;
+                kickback = 0.01;
+                aim = true;
+            } else {
+                camera.fov = 1.5;
+                akm.position = new BABYLON.Vector3(0.5, -0.7, 0.5);
+                res = 0;
+                ree = 5;
+                kickback = 0.02;
+                aim = false;
+            }
+        }
+    }
+    
+    scene.onPointerUp = (e) => {
+        if (e.button === left) {
+            aufi = false;
+        }
+        if (e.button === right) {
+            
+        }
+    }
+
+    var shoot = new BABYLON.Sound("gunshot", "sounds/gunshot.wav", scene);
+    var reload = new BABYLON.Sound("reload", "https://raw.githubusercontent.com/Giv0/PhaserGameAssets/master/babylonjs/reload.mp3", scene);
+
+    var si = 0;
+    var sf = 0;
+    var contin = true;
+
+    var update = function() {
+        for(c=0; c<num_enemies;c++){
+        sheal[c].width = health[c]/10;
+        }
+        console.wipe();
+        //console.out();
+        camera.speed = speed + spood;
+        console.out(dT);
+
+        camera.onCollide = function (colMesh) {
+		    if (colMesh.uniqueId === ground0.uniqueId) {
+			    wj = true;
+		    }
+	    }
+
+        scene.gravity.y = grav;
+        
+        if (grav > -0.4) {
+            grav -= 0.05;
+        }
+
+        
+        //target[0].material.emissiveColor = new BABYLON.Color3(health, health, health);
+
+        if (aufi == true && auti <= 0 && auam != 0 && aure == 0) {
+            PEW();
+            camera.rotation.x -= kickback;
+            var fire = scene.beginAnimation(akm, res, ree, false);
+            shoot.play();
+            auti = 100;
+            auam--;
+        }
+
+        if (auti >= 0) auti -= dT;
+
+        for(d=0; d<num_enemies; d++){
+        if (health[d] < 0.01) {
+            health[d] = 0;
+            target[d].isVisible=false;
+            nodes[d].dispose();
+        }
+        }
+
+        if (aure != 0) aure--;
+        if (aure == 1) auam = 30;
+
+        ammocount.text = auam+"";
+        ammocount.leftInPixels = canvas.width/2.1;
+
+        for(f=0; f<num_enemies;f++){
+         // Calculating distances between the enemy and the player
+            let initVec = target[f].position.clone();
+            let distVec = BABYLON.Vector3.Distance(camera.position, target[f].position);  
+                         
+            let targetVec = camera.position.subtract(initVec);
+            let targetVecNorm = BABYLON.Vector3.Normalize(targetVec);           
+            
+            // Enemy always faces the player                   
+            target[0].lookAt(camera.position, Math.PI);
+            // Move enemy towards the player and stops slightly ahead
+            
+            if(distVec < 40 && distVec >=5){
+                //this.healthBar.isVisible = true;
+                distVec -= 0.03;
+                target[f].translate(targetVecNorm, 0.03, BABYLON.Space.WORLD);
+                target[f].position.y = 0; 
+                //animationAttack.start();               
+            }
+            
+            // Idle animation play distance
+            
+            if(distVec >= 40){                
+                //animationIdle.start();
+                //this.healthBar.isVisible = false;
+            }     
+            
+            // Attack animation play distance
+            
+            if(distVec < 5){
+                //animationAttack.start();
+                //player.healthDown(0.6);              
+            }   }        
+
+    }
+
+
+
+ scene.registerBeforeRender(function() {
+
+    update();
+    updateDT();
+    //keypress();
+});
+
+
+    canvas.focus();
+
+    return scene;
+}
+                window.initFunction = async function() {
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        startRenderLoop(engine, canvas);
+        window.scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene                    
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
